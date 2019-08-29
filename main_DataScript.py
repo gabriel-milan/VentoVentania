@@ -7,10 +7,12 @@ from Akuanduba.triggers import TimerCondition
 # This sample's imports
 from dataframes.WindData import *
 from services.AnemometerService import *
+from services.ApiService import *
 from tools.SendDataTool import *
 
 # Creating services
-svc = AnemometerService("Anemometer service")
+svc = AnemometerService("Anemometer Service")
+api = ApiService("API Service")
 
 # Creating tools
 tool = SendDataTool ("Tool for data sending")
@@ -32,6 +34,7 @@ manager = Akuanduba("Akuanduba", level=LoggingLevel.INFO)
 
 # Appending services
 ServiceManager += svc
+ServiceManager += api
 
 # Appending tools
 #

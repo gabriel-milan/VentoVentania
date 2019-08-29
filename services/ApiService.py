@@ -1,4 +1,4 @@
-__all__ = ['AnemometerService']
+__all__ = ['ApiService']
 
 # Mandatory imports
 from Akuanduba.core import Logger, NotSet, AkuandubaService
@@ -8,21 +8,24 @@ from Akuanduba.core import StatusCode, StatusTool, StatusThread
 # Your own imports go here:
 # import sensor_lib
 import time
+from flask import Flask, Response
+from flask_cors import CORS
 
 #
 # Your SERVICE must always have inheritance from AkuandubaService
 #
-class AnemometerService( AkuandubaService ):
+class ApiService( AkuandubaService ):
 
   #
   # Here EDMs and other stuff will not be available yet, this is just for attributes initialization and superclass init
   #
-  def __init__(self, name):
+  def __init__(self, name, update_time = 10 * Second):
 
     # Mandatory stuff
     AkuandubaService.__init__(self, name)
 
-    # Sensor initialization must go on "initialize" method
+    self._updateTime = update_time
+    self.__data = 0
 
   #
   # At this point, the context will be set and all EDMs, services and tools will already be attached to it
@@ -36,10 +39,25 @@ class AnemometerService( AkuandubaService ):
       MSG_FATAL( self, "Impossible to initialize the %s service", self.name())
       return StatusCode.FAILURE
 
-    # Initialize sensor here
-    #
-    # sensor.initialize()
-    #
+    # Constructing Flask app
+    self.__app = Flask(__name__)
+    self.__cors = CORS(self.__app, supports_credentials = True)
+
+    # Making route for getting signal data
+    @self.__app.route('/wind_data')
+    def get_wind_data():
+
+        import json
+        
+        def get_data():
+            while True:
+                while (self.__data == 0):
+                    pass
+                json_data = json.dumps(self.__data)
+                yield "data: {}\n\n".format(json_data)
+                time.sleep(1)
+
+        return Response(get_data(), mimetype='text/event-stream')
 
     # Lock the initialization. After that, this tool can not be initialized once again
     self.init_lock()
@@ -51,11 +69,10 @@ class AnemometerService( AkuandubaService ):
   #
   def execute( self, context ):
 
-    # On this example, I'll only get the data and put it into the dataframe.
-    dataframe = self.getContext().getHandler("WindData")
-    speed = self._get()
-    dataframe.setSpeed(speed)
-    MSG_INFO (self, "Wind speed is {} mph".format(speed))
+    datafame = self.getContext().getHandler("WindData")
+
+    self.__data = datafame.getHistory()
+    print (self.__data)
 
     # Always return SUCCESS
     return StatusCode.SUCCESS
@@ -76,17 +93,20 @@ class AnemometerService( AkuandubaService ):
   #
   def run( self ):
 
-    reading = 0
+    # Imports
+    import traceback
 
-    # This is the main loop for the thread, do everything inside this
+    # While loop
     while self.statusThread() == StatusThread.RUNNING:
 
-      # Reading sensor
-      # reading = sensor.read()
-      time.sleep(1)
-      if (reading >= 255):
-        reading = 0
-      reading += 1
+        time.sleep(5)
 
-      # Putting reading into queue
-      self._put(reading)
+        try:
+            # Running server
+            self.__app.run(host = "0.0.0.0", port = 5000, debug = False)
+
+        except Exception:
+            # Printing the exception
+            print(traceback.format_exc())
+
+    return StatusCode.FAILURE
