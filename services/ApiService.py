@@ -72,7 +72,6 @@ class ApiService( AkuandubaService ):
     datafame = self.getContext().getHandler("WindData")
 
     self.__data = datafame.getHistory()
-    print (self.__data)
 
     # Always return SUCCESS
     return StatusCode.SUCCESS
